@@ -4,6 +4,7 @@ const cors = require("cors");
 const path = require("path");
 
 const app = express();
+app.enable('trust proxy');
 
 // 前端（非调试）
 app.use(express.static(path.join(__dirname, "dist")));
