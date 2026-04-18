@@ -6,5 +6,5 @@ services:
     ports:
       - "7662:3000"
     restart: always
-    working_dir: /app/backend
+    working_dir: /app
     command: ["node", "app.js"]
