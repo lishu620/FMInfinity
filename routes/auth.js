@@ -250,6 +250,34 @@ router.get("/status/:id/admins", authMiddleware, async (req, res) => {
   res.json(admins);
 });
 
+// 删除用户（仅超级管理员）
+router.delete("/user/:id", authMiddleware, isSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const targetUser = await User.findByPk(id);
+
+    if (!targetUser) {
+      return res.status(404).json({ message: "用户不存在" });
+    }
+
+    // 不能删除自己
+    if (targetUser.id === req.user.id) {
+      return res.status(400).json({ message: "不能删除自己" });
+    }
+
+    // 从你的表看，statusId=1 就是 admin 组，直接用这个判断
+    if (targetUser.statusId === 1) {
+      return res.status(400).json({ message: "不能删除超级管理员" });
+    }
+
+    await targetUser.destroy();
+    res.json({ message: "用户已删除" });
+  } catch (err) {
+    console.error("删除用户失败:", err);
+    res.status(500).json({ message: "删除用户失败" });
+  }
+});
+
 // 设置/取消组管理员
 router.put(
   "/status/:id/admin/:userId",

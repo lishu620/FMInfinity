@@ -43,9 +43,9 @@ router.get("/issue/show-list", authMiddleware, async (req, res) => {
   try {
     const issues = await Issue.findAll({
       where: {
-        status: "published"  // 只返回已发布稿件
+        status: "published", // 只返回已发布稿件
       },
-      order: [["id", "DESC"]]
+      order: [["id", "DESC"]],
     });
 
     return res.json(issues);
@@ -154,18 +154,52 @@ router.get("/issue/:id/songs/vote-count", async (req, res) => {
     const issueId = req.params.id;
     const songs = await PublicSong.findAll({
       where: { issueId },
-      include: [{
-        model: Vote,
-        attributes: [[sequelize.fn('COUNT', sequelize.col('Votes.id')), 'voteCount']],
-      }],
-      group: ['PublicSong.id'],
-      order: [[sequelize.fn('COUNT', sequelize.col('Votes.id')), 'DESC']], // 排序
+      include: [
+        {
+          model: Vote,
+          attributes: [
+            [sequelize.fn("COUNT", sequelize.col("Votes.id")), "voteCount"],
+          ],
+        },
+      ],
+      group: ["PublicSong.id"],
+      order: [[sequelize.fn("COUNT", sequelize.col("Votes.id")), "DESC"]], // 排序
     });
 
-    res.json(songs);  // 返回按票数排序的歌曲
+    res.json(songs); // 返回按票数排序的歌曲
   } catch (err) {
-    console.error("Error in /issue/:id/songs/vote-count:", err);  // 打印详细错误日志
+    console.error("Error in /issue/:id/songs/vote-count:", err); // 打印详细错误日志
     res.status(500).json({ message: "获取歌曲失败", error: err.message });
+  }
+});
+
+// 删除稿件（仅超级管理员）
+router.delete("/issue/:id", authMiddleware, isSuperAdmin, async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const issue = await Issue.findByPk(id, { transaction: t });
+
+    if (!issue) {
+      await t.rollback();
+      return res.status(404).json({ message: "稿件不存在" });
+    }
+
+    // 1. 先删除所有关联数据，避免外键报错
+    await Copy.destroy({ where: { issueId: id }, transaction: t });
+    await Vote.destroy({ where: { issueId: id }, transaction: t });
+    await PublicSong.destroy({ where: { issueId: id }, transaction: t });
+    await IssueAdmin.destroy({ where: { issueId: id }, transaction: t });
+
+    // 2. 删除主稿件
+    await issue.destroy({ transaction: t });
+
+    await t.commit();
+    res.json({ message: "稿件已删除" });
+  } catch (err) {
+    await t.rollback();
+    console.error("删除稿件失败:", err);
+    res.status(500).json({ message: "删除稿件失败" });
   }
 });
 
@@ -431,62 +465,67 @@ router.get("/issue/:id/review", authMiddleware, async (req, res) => {
   }
 });
 
-router.post("/issue/:id/finalize-songs", authMiddleware, isIssueAdmin, async (req, res) => {
-  try {
-    const issueId = req.params.id;
-    const issue = await Issue.findByPk(issueId);
+router.post(
+  "/issue/:id/finalize-songs",
+  authMiddleware,
+  isIssueAdmin,
+  async (req, res) => {
+    try {
+      const issueId = req.params.id;
+      const issue = await Issue.findByPk(issueId);
 
-    if (!issue) return res.status(404).json({ message: "稿件不存在" });
+      if (!issue) return res.status(404).json({ message: "稿件不存在" });
 
-    const songs = await PublicSong.findAll({
-      where: { issueId },
-    });
+      const songs = await PublicSong.findAll({
+        where: { issueId },
+      });
 
-    const votes = await Vote.findAll({
-      where: { issueId },
-    });
+      const votes = await Vote.findAll({
+        where: { issueId },
+      });
 
-    const voteMap = {};
-    for (const v of votes) {
-      voteMap[v.songId] = (voteMap[v.songId] || 0) + v.voteCount;
-    }
+      const voteMap = {};
+      for (const v of votes) {
+        voteMap[v.songId] = (voteMap[v.songId] || 0) + v.voteCount;
+      }
 
-    const rankedSongs = songs
-      .map((song) => ({
-        ...song.toJSON(),
-        totalVotes: voteMap[song.id] || 0,
-      }))
-      .sort((a, b) => b.totalVotes - a.totalVotes || a.id - b.id);
+      const rankedSongs = songs
+        .map((song) => ({
+          ...song.toJSON(),
+          totalVotes: voteMap[song.id] || 0,
+        }))
+        .sort((a, b) => b.totalVotes - a.totalVotes || a.id - b.id);
 
-    const selectedIds = rankedSongs
-      .slice(0, issue.selectedCount)
-      .map((song) => song.id);
+      const selectedIds = rankedSongs
+        .slice(0, issue.selectedCount)
+        .map((song) => song.id);
 
-    // 只更新文案池，不动投票池
-    await PublicSong.update(
-      { isReviewSelected: false },  // 先清空文案池
-      { where: { issueId } }
-    );
-
-    await Copy.destroy({ where: { issueId } });  // 删除原来的文案
-
-    if (selectedIds.length > 0) {
-      // 只更新 isReviewSelected 字段，不动 isSelected
+      // 只更新文案池，不动投票池
       await PublicSong.update(
-        { isReviewSelected: true },
-        { where: { id: selectedIds } }
+        { isReviewSelected: false }, // 先清空文案池
+        { where: { issueId } },
       );
-    }
 
-    res.json({
-      message: "已按票数自动选歌",
-      selectedSongIds: selectedIds,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "自动选歌失败" });
-  }
-});
+      await Copy.destroy({ where: { issueId } }); // 删除原来的文案
+
+      if (selectedIds.length > 0) {
+        // 只更新 isReviewSelected 字段，不动 isSelected
+        await PublicSong.update(
+          { isReviewSelected: true },
+          { where: { id: selectedIds } },
+        );
+      }
+
+      res.json({
+        message: "已按票数自动选歌",
+        selectedSongIds: selectedIds,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "自动选歌失败" });
+    }
+  },
+);
 
 // 单期稿件详情（所有人可见）
 router.get("/issue/:id/show", authMiddleware, async (req, res) => {
@@ -500,34 +539,36 @@ router.get("/issue/:id/show", authMiddleware, async (req, res) => {
     // 2. 单独查询所有相关数据，避免关联错误
     const songs = await PublicSong.findAll({
       where: { issueId: id, isReviewSelected: true },
-      order: [["id", "ASC"]]
+      order: [["id", "ASC"]],
     });
 
     // 3. 单独查询票数
     const votes = await Vote.findAll({ where: { issueId: id } });
     const voteMap = {};
-    votes.forEach(v => {
+    votes.forEach((v) => {
       voteMap[v.songId] = (voteMap[v.songId] || 0) + v.voteCount;
     });
 
     // 4. 单独查询文案
     const copies = await Copy.findAll({
       where: { issueId: id },
-      include: [{ model: User, attributes: ["id", "nickname"] }]
+      include: [{ model: User, attributes: ["id", "nickname"] }],
     });
     const copyMap = {};
-    copies.forEach(c => {
+    copies.forEach((c) => {
       copyMap[c.songId] = c;
     });
 
     // 5. 组装最终数据
-    const result = songs.map(song => ({
+    const result = songs.map((song) => ({
       ...song.toJSON(),
       totalVotes: voteMap[song.id] || 0,
-      copy: copyMap[song.id] ? {
-        ...copyMap[song.id].toJSON(),
-        nickname: copyMap[song.id].User?.nickname || "未知"
-      } : null
+      copy: copyMap[song.id]
+        ? {
+            ...copyMap[song.id].toJSON(),
+            nickname: copyMap[song.id].User?.nickname || "未知",
+          }
+        : null,
     }));
 
     return res.json({ songs: result });
