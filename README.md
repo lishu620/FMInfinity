@@ -14,3 +14,10 @@ cd FMInfinity/
 npm install
 pm2 start app.js
 ```
+
+## 如何更新
+
+```bash
+git pull
+pm2 restart app.js
+```

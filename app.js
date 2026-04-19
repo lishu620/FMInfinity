@@ -5,19 +5,22 @@ const path = require("path");
 
 const app = express();
 
-// 前端（非调试）
-app.use(express.static(__dirname + "/dist"));
-
 // 中间件
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 路由
+// API 路由
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api", require("./routes/issue"));
 app.use("/api", require("./routes/vote"));
 app.use("/api", require("./routes/vsingers"));
+
+// 前端代理
+app.use(express.static(path.join(__dirname, "dist")));
+app.use(function (req, res, next) {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
 
 // 初始化数据库
 require("./models");

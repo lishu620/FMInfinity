@@ -1,8 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { authMiddleware } = require("../middleware/auth");
-const { Issue, PublicSong, Vote, User } = require("../models");
-
+const { Issue, PublicSong, Vote, User, Vsinger } = require("../models");
 
 // 获取【所有投票中】的稿件列表
 router.get("/vote/issues", authMiddleware, async (req, res) => {
@@ -37,6 +36,11 @@ router.get("/vote/issue/:id/songs", authMiddleware, async (req, res) => {
             },
           ],
         },
+        {
+          model: Vsinger,
+          as: "vsingers",
+          attributes: ["id", "vsingerName"],
+        },
       ],
       order: [["id", "ASC"]],
     });
@@ -61,18 +65,17 @@ router.get("/vote/issue/:id/songs", authMiddleware, async (req, res) => {
   }
 });
 
-
 router.get("/issue/:id/show-list", authMiddleware, async (req, res) => {
   try {
     const issueId = req.params.id;
     const issue = await Issue.findByPk(issueId);
 
-    if (!issue || issue.status !== 'published') {
-  return res.status(403).json({ message: "无权限查看该稿件" });
-}
+    if (!issue || issue.status !== "published") {
+      return res.status(403).json({ message: "无权限查看该稿件" });
+    }
 
     const songs = await PublicSong.findAll({
-      where: { issueId, isReviewSelected: true },  // 只显示已选入文案池的歌曲
+      where: { issueId, isReviewSelected: true }, // 只显示已选入文案池的歌曲
       order: [["id", "ASC"]],
     });
 
@@ -107,7 +110,7 @@ router.get("/issue/:id/show-list", authMiddleware, async (req, res) => {
             }
           : null,
       }))
-      .filter((song) => song.copy);  // 过滤出已完成文案的歌曲
+      .filter((song) => song.copy); // 过滤出已完成文案的歌曲
 
     res.json({
       issue,
