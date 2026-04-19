@@ -4,10 +4,9 @@ const cors = require("cors");
 const path = require("path");
 
 const app = express();
-app.enable('trust proxy');
 
 // 前端（非调试）
-app.use(express.static(path.join(__dirname, "dist")));
+app.use(express.static(__dirname + "/dist"));
 
 // 中间件
 app.use(cors());
@@ -18,6 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api", require("./routes/issue"));
 app.use("/api", require("./routes/vote"));
+app.use("/api", require("./routes/vsingers"));
 
 // 初始化数据库
 require("./models");

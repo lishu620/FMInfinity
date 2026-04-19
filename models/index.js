@@ -63,7 +63,6 @@ const PublicSong = sequelize.define("PublicSong", {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   issueId: { type: DataTypes.INTEGER, allowNull: false }, // 所属稿件ID
   name: { type: DataTypes.STRING, allowNull: false }, // 歌曲名
-  artist: { type: DataTypes.STRING }, // 歌手（可选）
   link: { type: DataTypes.STRING }, // 网易云/B站链接（可选）
   type: { type: DataTypes.STRING }, // 歌曲类型（可选）
   submitter: { type: DataTypes.STRING }, // 提交者昵称（可选）
@@ -96,6 +95,12 @@ const Copy = sequelize.define("Copy", {
   userId: { type: DataTypes.INTEGER, allowNull: false }, // 文案作者
   content: { type: DataTypes.TEXT, allowNull: false }, // 文案内容
   isSubmitted: { type: DataTypes.BOOLEAN, defaultValue: false }, // 是否提交
+});
+
+// 8. 歌姬表
+const Vsinger = sequelize.define("Vsinger", {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  vsingerName: { type: DataTypes.TEXT, allowNull: false },
 });
 
 // 表关联
@@ -131,6 +136,22 @@ Vote.belongsTo(PublicSong, { foreignKey: "songId" });
 PublicSong.belongsTo(User, {
   foreignKey: "SelectedUser",
   as: "selectedUser",
+});
+
+// 歌姬--歌曲
+const SongVsinger = sequelize.define("SongVsinger", {}, { timestamps: true });
+
+PublicSong.belongsToMany(Vsinger, {
+  through: SongVsinger,
+  foreignKey: "songId",
+  otherKey: "vsingerId",
+  as: "vsingers",
+});
+Vsinger.belongsToMany(PublicSong, {
+  through: SongVsinger,
+  foreignKey: "vsingerId",
+  otherKey: "songId",
+  as: "publicSongs",
 });
 
 // 初始化数据库并创建默认超管
@@ -176,4 +197,5 @@ module.exports = {
   PublicSong,
   Vote,
   Copy,
+  Vsinger,
 };

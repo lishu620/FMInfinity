@@ -6,10 +6,11 @@ FMInfinity投票平台基于Node.js后端,Vue+Element-Plus前端构成,由于本
 
 ## 如何部署
 
-本项目通过Docker部署
+本项目通过node.js+pm2部署
 
 ```bash
 git clone https://github.com/lishu620/FMInfinity.git
 cd FMInfinity/
-docker compose up -d --build
+npm install
+pm2 start app.js
 ```

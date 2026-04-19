@@ -125,20 +125,18 @@ router.post(
   },
 );
 
-// 获取本期歌曲
+// 获取本期歌曲（带歌姬）
 router.get("/issue/:id/songs", authMiddleware, async (req, res) => {
   try {
     const issueId = req.params.id;
+    const { Vsinger } = require("../models");
 
     const songs = await PublicSong.findAll({
       where: { issueId },
       order: [["id", "ASC"]],
       include: [
-        {
-          model: User,
-          as: "selectedUser",
-          attributes: ["id", "nickname"],
-        },
+        { model: User, as: "selectedUser", attributes: ["id", "nickname"] },
+        { model: Vsinger, as: "vsingers" },
       ],
     });
 
@@ -374,6 +372,14 @@ router.put("/issue/:id/song/:songId", authMiddleware, async (req, res) => {
     }
 
     await song.update(updates);
+
+    // ==========================================
+    // 🔥 核心：多选歌姬自动写入 SongVsinger 多对多表
+    // ==========================================
+    const { vsingerIds } = req.body;
+    if (vsingerIds !== undefined) {
+      await song.setVsingers(vsingerIds);
+    }
 
     res.json({ message: "修改成功", song });
   } catch (err) {
