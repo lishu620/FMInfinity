@@ -90,10 +90,10 @@ const Vote = sequelize.define("Vote", {
 // 7. 文案表
 const Copy = sequelize.define("Copy", {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  songId: { type: DataTypes.INTEGER, allowNull: false }, //
-  userId: { type: DataTypes.INTEGER, allowNull: false }, // 文案作者
-  content: { type: DataTypes.TEXT, allowNull: false }, // 文案内容
-  isChoiced: { type: DataTypes.BOOLEAN, defaultValue: false }, // 是否选择
+  songId: DataTypes.INTEGER,
+  userId: DataTypes.INTEGER,
+  content: DataTypes.TEXT,
+  isSubmitted: DataTypes.BOOLEAN,
 });
 
 // 8. 歌姬表

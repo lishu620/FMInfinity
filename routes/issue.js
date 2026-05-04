@@ -537,6 +537,7 @@ router.post(
 router.get("/issue/:id/show", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    const { Vsinger } = require("../models");
 
     // 1. 校验稿件是否存在
     const issue = await Issue.findByPk(id);
