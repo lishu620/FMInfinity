@@ -15,7 +15,6 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api", require("./routes/issue"));
 app.use("/api", require("./routes/vote"));
 app.use("/api", require("./routes/vsingers"));
-app.use("/api", require("./routes/daily"));
 
 // 前端代理
 app.use(express.static(path.join(__dirname, "dist")));

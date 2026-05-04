@@ -102,18 +102,6 @@ const Vsinger = sequelize.define("Vsinger", {
   vsingerName: { type: DataTypes.TEXT, allowNull: false },
 });
 
-// 每日文案
-const DailyCopy = sequelize.define("DailyCopy", {
-  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  songName: { type: DataTypes.STRING, allowNull: false },
-  desc: { type: DataTypes.TEXT, allowNull: false },
-  bvid: { type: DataTypes.STRING },
-  userId: { type: DataTypes.INTEGER, allowNull: false },
-
-  // ✅ 加这一行（选定状态）
-  isChoiced: { type: DataTypes.BOOLEAN, defaultValue: false },
-});
-
 Status.hasMany(User, { foreignKey: "statusId" });
 User.belongsTo(Status, { foreignKey: "statusId" });
 
@@ -164,10 +152,6 @@ Vsinger.belongsToMany(PublicSong, {
   as: "publicSongs",
 });
 
-// 关联：每日文案 ↔ 用户
-DailyCopy.belongsTo(User, { foreignKey: "userId" });
-User.hasMany(DailyCopy, { foreignKey: "userId" });
-
 // 初始化数据库并创建默认超管
 const initDB = async () => {
   await sequelize.sync({ force: false });
@@ -212,5 +196,4 @@ module.exports = {
   Vote,
   Copy,
   Vsinger,
-  DailyCopy,
 };
